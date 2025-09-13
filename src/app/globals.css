@@ -25,7 +25,6 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
--- Ant Design components override
 .editable-row td {
-  padding: 10px !important;
+  padding: 2px !important;
 }

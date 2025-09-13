@@ -6,30 +6,18 @@ type FormInstance<T> = GetRef<typeof Form<T>>;
 const EditableContext = React.createContext<FormInstance<any> | null>(null);
 type ColumnTypes = Exclude<TableProps<Car>['columns'], undefined>;
 
-interface Item {
-  key: string;
-  name: string;
-  age: string;
-  address: string;
-}
-
 interface EditableRowProps {
   index: number;
 }
 
-interface EditableCellProps {
-  title: React.ReactNode;
+interface EditableCellProps extends React.HTMLAttributes<HTMLElement> {
+  title: string;
   editable: boolean;
-  dataIndex: keyof Item;
-  record: Item;
-  handleSave: (record: Item) => void;
-};
-
-interface DataType {
-  key: React.Key;
-  name: string;
-  age: string;
-  address: string;
+  children: React.ReactNode;
+  dataIndex: string;
+  record: any;
+  handleSave: (record: any) => void;
+  races: Race[];
 }
 
 const EditableRow: React.FC<EditableRowProps> = ({ index, ...props }) => {
@@ -43,13 +31,13 @@ const EditableRow: React.FC<EditableRowProps> = ({ index, ...props }) => {
   );
 };
 
-const EditableCell: React.FC<React.PropsWithChildren<EditableCellProps>> = ({
+const EditableCell: React.FC<EditableCellProps> = ({
   title,
   editable,
-  children,
   dataIndex,
   record,
   handleSave,
+  races,
   ...restProps
 }) => {
   const [editing, setEditing] = useState(false);
@@ -76,24 +64,54 @@ const EditableCell: React.FC<React.PropsWithChildren<EditableCellProps>> = ({
     }
   };
 
-  let childNode = children;
+  const now = new Date();
+  const raceRound = parseInt(dataIndex); // since race columns are named '1', '2', etc.
+
+  const race = races.find(r => r.round === raceRound);
+  const raceDate = race ? new Date(race.raceDateTime) : null;
+  const diffDays = raceDate ? (now.getTime() - raceDate.getTime()) / (1000 * 60 * 60 * 24) : 0;
+  const isRecent = raceDate && diffDays >= 0 && diffDays <= 28;
+
+  const backgroundColor = editable
+    ? isRecent
+      ? '#f2ce40ff' // Yellow
+      : '#c2c2c2ff' // Grey
+    : undefined;
+
+  let childNode = restProps.children;
 
   if (editable) {
     childNode = editing ? (
       <Form.Item
         style={{ margin: 0 }}
-        name={dataIndex}
+        name={`r${dataIndex}`}
         rules={[{ required: true, message: `${title} is required.` }]}
       >
-        <Input ref={inputRef} onPressEnter={save} onBlur={save} />
+        <Input
+          ref={inputRef}
+          size="small"
+          onPressEnter={save}
+          onBlur={save}
+          style={{ textAlign: 'center' }}
+        />
       </Form.Item>
     ) : (
       <div
         className="editable-cell-value-wrap"
-        style={{ paddingInlineEnd: 24 }}
+        style={{
+          padding: 0,
+          margin: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+        }}
         onClick={toggleEdit}
       >
-        {children}
+        {record[`r${dataIndex}`] ?? 0}
       </div>
     );
   }
@@ -224,29 +242,12 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
 
   const raceColumns = races
     .sort((a, b) => a.round - b.round)
-    .map((race) => ({
-      title: race.name.slice(0, 3).toUpperCase(),
-      dataIndex: String(race.round),
+    .map((race, index) => ({
+      title: race ? race.name.slice(0, 3).toUpperCase() : `R${index + 1}`,
+      dataIndex: `${race.round}`,
       editable: true,
-      render: (text: any, record: any) => {
-        const value = record.penaltyPoints?.[race.round] ?? 0;
-        const raceDate = new Date(race.raceDateTime);
-        const diffDays = (now.getTime() - raceDate.getTime()) / (1000 * 60 * 60 * 24);
-        const isRecent = diffDays >= 0 && diffDays <= 28;
-
-        return (
-          <div
-            style={{
-              backgroundColor: isRecent ? '#fde721ff' : '#b9b9b9ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {value}
-          </div>
-        );
-      },
+      width: 50,
+      align: 'center',
     }));
 
   const defaultColumns = [...baseColumns, ...raceColumns];
@@ -263,7 +264,7 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
   const components = {
     body: {
       row: EditableRow,
-      cell: EditableCell,
+      cell: (props: EditableCellProps) => <EditableCell {...props} races={races} />,
     },
   };
 
@@ -277,6 +278,7 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
         dataIndex: col.dataIndex,
         title: col.title,
         handleSave,
+        races, // 👈 ADD THIS
       }),
     };
   });
@@ -300,12 +302,12 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
       </Button>
       <Table
         size="small"
-        components={components}
-        rowClassName={() => 'editable-row'}
         bordered
+        pagination={false}
+        components={components}
         dataSource={dataSource}
         columns={columns as ColumnTypes}
-        pagination={false}
+        rowClassName={() => 'editable-row'}
       />
     </Space>
   );

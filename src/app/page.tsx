@@ -48,7 +48,6 @@ export default function Home() {
 
   const handleChampionshipSelection = (id: number) => {
     const champ = champData.find((item) => item.id === id) || null;
-    console.log(champ);
     setSelectedChamp(champ);
     setCarsData(champ?.cars || []);
   };
@@ -65,7 +64,6 @@ export default function Home() {
       value: champ.id,
       label: (<span>{champ.title}</span>),
     }));
-    console.log(items);
 
     setChampList([ { value: -1, label: (<span>Select championship</span>) }, ...items ]);
   }, [champData]);
