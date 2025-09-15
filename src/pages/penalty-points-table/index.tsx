@@ -284,6 +284,7 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
   });
 
   useEffect(() => {
+    console.log(tableData.length);
     setDataSource(tableData.map((car) => flattenPenaltyPoints(car, raceRounds)));
   }, [tableData, races]);
 
