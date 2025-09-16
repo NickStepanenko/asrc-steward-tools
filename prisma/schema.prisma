@@ -6,10 +6,85 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model Cars {
+  id               Int          @id @default(autoincrement())
+  carNumber        Int
+  driverId         Int
+  driverFirstName  String
+  driverLastName   String
+  teamId           Int?
+  teamName         String?
+  teamLogo         String?
+  carImage         String?
+  flagImage        String?
+  championshipId   Int
+
+  championship     Championships @relation("ChampionshipCars", fields: [championshipId], references: [id])
+  penalty          Penalty[] @relation("carPenalty")
+}
+
+model Championships {
+  id            Int          @id @default(autoincrement())
+  title         String
+  logo          String?
+  serverName    String?
+  serverPass    String?
+  leagueJoinQr  String?
+
+  cars          Cars[] @relation("ChampionshipCars")
+  races         Races[] @relation("ChampionshipRaces")
+}
+
+model Countries {
+  id         Int          @id @default(autoincrement())
+  name       String
+  imageUrl   String?
+  shortName  String
+}
+
+model Drivers {
+  id         Int          @id @default(autoincrement())
+  firstName  String
+  lastName   String
+  country    Int?
+}
+
+model Races {
+  id              Int       @id @default(autoincrement())
+  name            String
+  round           Int       @unique
+  laps            Int
+  mins            Int
+  trackId         Int?
+  trackMap        String?
+  trackLogo       String?
+  raceDateTime    DateTime
+  tyres           String[]
+  championshipId  Int
+
+  championship     Championships @relation("ChampionshipRaces", fields: [championshipId], references: [id])
+}
+
+model Penalty {
+  id        Int      @id @default(autoincrement())
+  carId     Int
+  raceId    Int
+  points    Int
+
+  car     Cars @relation("carPenalty", fields: [carId], references: [id])
+}
+
+model Teams {
+  id         Int          @id @default(autoincrement())
+  name       String
+  shortName  String
+  logoUrl    String?
+  country    Int?
 }

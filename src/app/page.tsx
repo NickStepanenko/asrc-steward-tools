@@ -1,44 +1,9 @@
 "use client"
-import Image from "next/image";
 import PenaltyPointsTable from "../pages/penalty-points-table";
 import { useEffect, useState } from "react";
 import { Select, Space } from "antd";
 
-type Championship = {
-  id: number;
-  title: string;
-  logo: string;
-  serverName: string;
-  serverPass: string;
-  leagueJoinQr: string;
-  cars: [Car];
-  races: [Race];
-};
-type Car = {
-  carNumber: number;
-  firstName: string;
-  lastName: string;
-  teamName: string;
-  teamLogo: string;
-  carImage: string;
-  flagImage: string;
-  penaltyPoints: { [key: number]: number };
-};
-type Race = {
-  id: number;
-  name: string;
-  round: number;
-  laps: number;
-  mins: number;
-  tyres: [string];
-  trackMap: string;
-  trackLogo: string;
-  raceDateTime: string;
-};
-type ChampionshipsListItem = {
-  value: number | null;
-  label: React.ReactElement;
-};
+import type { Car, Championship, ChampionshipsListItem } from '@/types';
 
 export default function Home() {
   const [champData, setChampData] = useState<Championship[]>([]);
@@ -60,6 +25,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    console.log(champData);
     const items = champData.map((champ: Championship) => ({
       value: champ.id,
       label: (<span>{champ.title}</span>),

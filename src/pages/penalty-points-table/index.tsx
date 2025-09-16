@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import type { GetRef, InputRef, TableProps } from 'antd';
 import { Button, Form, Input, Popconfirm, Space, Table } from 'antd';
+import type { Car, Race, PenaltyTableProps } from '@/types'
 
 type FormInstance<T> = GetRef<typeof Form<T>>;
 const EditableContext = React.createContext<FormInstance<any> | null>(null);
@@ -119,34 +120,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
   return <td {...restProps}>{childNode}</td>;
 };
 
-type PenaltyTableProps = {
-  tableData: Car[];
-  races: Race[];
-};
-type Car = {
-  carNumber: number;
-  firstName: string;
-  lastName: string;
-  teamName: string;
-  teamLogo: string;
-  carImage: string;
-  flagImage: string;
-  penaltyPoints: { [key: number]: number };
-};
-type Race = {
-  id: number;
-  name: string;
-  round: number;
-  laps: number;
-  mins: number;
-  tyres: [string];
-  trackMap: string;
-  trackLogo: string;
-  raceDateTime: string;
-};
-
 const flattenPenaltyPoints = (car: Car & { penaltyPoints: Record<number, number> }, raceRounds: number[]) => {
-  const flattened = { ...car, key: car.carNumber } as any;
+  const flattened = { ...car, key: car.id } as any;
   raceRounds.forEach((round) => {
     flattened[`r${round}`] = car.penaltyPoints[round] ?? 0;
   });
@@ -284,7 +259,6 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
   });
 
   useEffect(() => {
-    console.log(tableData.length);
     setDataSource(tableData.map((car) => flattenPenaltyPoints(car, raceRounds)));
   }, [tableData, races]);
 
