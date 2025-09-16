@@ -33,6 +33,20 @@ export async function GET() {
           },
         },
       },
+      races: {
+        select: {
+          id: true,
+          name: true,
+          round: true,
+          laps: true,
+          mins: true,
+          trackId: true,
+          trackMap: true,
+          trackLogo: true,
+          raceDateTime: true,
+          tyres: true,
+        },
+      },
     },
   });
 

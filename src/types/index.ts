@@ -12,7 +12,7 @@ export type Car = {
   teamLogo: string;
   carImage: string;
   flagImage: string;
-  penaltyPoints: { [key: number]: number };
+  penalty: [PenaltyPoints];
 };
 
 export type Race = {
@@ -37,7 +37,15 @@ export type Championship = {
   cars: [Car];
   races: [Race];
 };
+
 export type ChampionshipsListItem = {
   value: number | null;
   label: React.ReactElement;
 };
+
+export type PenaltyPoints = {
+  id: number;
+  raceId: number;
+  carId: number;
+  points: number;
+}

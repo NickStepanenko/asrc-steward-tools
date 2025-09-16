@@ -1,7 +1,8 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+
+import React, { useContext, useEffect, useRef, useState, useCallback } from 'react';
 import type { GetRef, InputRef, TableProps } from 'antd';
-import { Button, Form, Input, Popconfirm, Space, Table } from 'antd';
-import type { Car, Race, PenaltyTableProps } from '@/types'
+import { Button, Form, Input, Space, Table } from 'antd';
+import type { Car, Race, PenaltyTableProps, PenaltyPoints } from '@/types';
 
 type FormInstance<T> = GetRef<typeof Form<T>>;
 const EditableContext = React.createContext<FormInstance<any> | null>(null);
@@ -9,7 +10,7 @@ type ColumnTypes = Exclude<TableProps<Car>['columns'], undefined>;
 
 interface EditableRowProps {
   index: number;
-}
+};
 
 interface EditableCellProps extends React.HTMLAttributes<HTMLElement> {
   title: string;
@@ -19,7 +20,7 @@ interface EditableCellProps extends React.HTMLAttributes<HTMLElement> {
   record: any;
   handleSave: (record: any) => void;
   races: Race[];
-}
+};
 
 const EditableRow: React.FC<EditableRowProps> = ({ index, ...props }) => {
   const [form] = Form.useForm();
@@ -45,13 +46,16 @@ const EditableCell: React.FC<EditableCellProps> = ({
   const inputRef = useRef<InputRef>(null);
   const form = useContext(EditableContext)!;
 
+  const raceRound = parseInt(dataIndex);
+  const race = races.find(r => r.round === raceRound);
+
   useEffect(() => {
     if (editing) inputRef.current?.focus();
   }, [editing]);
 
   const toggleEdit = () => {
     setEditing(!editing);
-    form.setFieldsValue({ [dataIndex]: record[dataIndex] });
+    form.setFieldsValue({ [dataIndex]: race?.id ? record[race?.id] : 0 });
   };
 
   const save = async () => {
@@ -66,26 +70,23 @@ const EditableCell: React.FC<EditableCellProps> = ({
   };
 
   const now = new Date();
-  const raceRound = parseInt(dataIndex); // since race columns are named '1', '2', etc.
-
-  const race = races.find(r => r.round === raceRound);
   const raceDate = race ? new Date(race.raceDateTime) : null;
   const diffDays = raceDate ? (now.getTime() - raceDate.getTime()) / (1000 * 60 * 60 * 24) : 0;
   const isRecent = raceDate && diffDays >= 0 && diffDays <= 28;
 
   const backgroundColor = editable
     ? isRecent
-      ? '#f2ce40ff' // Yellow
-      : '#c2c2c2ff' // Grey
+      ? '#f2ce40ff'
+      : '#c2c2c2ff'
     : undefined;
 
-  let childNode = restProps.children;
+  let childNode = restProps.children ?? null;
 
   if (editable) {
     childNode = editing ? (
       <Form.Item
         style={{ margin: 0 }}
-        name={`r${dataIndex}`}
+        name={dataIndex}
         rules={[{ required: true, message: `${title} is required.` }]}
       >
         <Input
@@ -112,7 +113,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
         }}
         onClick={toggleEdit}
       >
-        {record[`r${dataIndex}`] ?? 0}
+        {race?.id ? record[race?.id] : 0}
       </div>
     );
   }
@@ -120,10 +121,13 @@ const EditableCell: React.FC<EditableCellProps> = ({
   return <td {...restProps}>{childNode}</td>;
 };
 
-const flattenPenaltyPoints = (car: Car & { penaltyPoints: Record<number, number> }, raceRounds: number[]) => {
+const MemoizedEditableCell = React.memo(EditableCell);
+
+const flattenPenaltyPoints = (car: Car & { penalty: PenaltyPoints[] }, raceRounds: number[]) => {
   const flattened = { ...car, key: car.id } as any;
   raceRounds.forEach((round) => {
-    flattened[`r${round}`] = car.penaltyPoints[round] ?? 0;
+    const pointsObj = car.penalty?.find((race) => race.raceId === round);
+    flattened[round.toString()] = pointsObj?.points ?? 0;
   });
   return flattened;
 };
@@ -131,7 +135,7 @@ const flattenPenaltyPoints = (car: Car & { penaltyPoints: Record<number, number>
 const unflattenPenaltyPoints = (row: any, raceRounds: number[]) => {
   const penaltyPoints: Record<number, number> = {};
   raceRounds.forEach((round) => {
-    penaltyPoints[round] = Number(row[`r${round}`]) || 0;
+    penaltyPoints[round] = Number(row[round.toString()]) || 0;
   });
 
   const { carNumber, firstName, lastName, teamName, teamLogo, carImage, flagImage } = row;
@@ -148,17 +152,13 @@ const unflattenPenaltyPoints = (row: any, raceRounds: number[]) => {
   };
 };
 
-
-const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
-  const {
-    tableData,
-    races,
-  } = params;
-
-  const raceRounds = races.map((r) => r.round);
+const PenaltyPointsTable: React.FC<PenaltyTableProps> = ({ tableData, races }) => {
+  const raceRounds = races.map((r) => r.id);
+  console.log("raceRounds:", raceRounds);
   const [dataSource, setDataSource] = useState<any[]>(() =>
     tableData.map((car) => flattenPenaltyPoints(car, raceRounds))
   );
+
   const now = new Date();
   const recentRounds = races
     .filter((race) => {
@@ -176,7 +176,7 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
     },
     {
       title: 'Last Name',
-      dataIndex: 'lastName',
+      dataIndex: 'driverLastName',
       width: 150,
     },
     {
@@ -185,10 +185,9 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
       width: 40,
       render: (_, record: any) => {
         const points = record.penaltyPoints || {};
-        const sum = Object.entries(points)
+        return Object.entries(points)
           .filter(([round]) => recentRounds.includes(Number(round)))
           .reduce((acc: any, [, val]) => acc + val, 0);
-        return sum;
       },
     },
     {
@@ -197,10 +196,9 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
       width: 40,
       render: (_, record: any) => {
         const points = record.penaltyPoints || {};
-        const sum = Object.entries(points)
+        return Object.entries(points)
           .filter(([round]) => !recentRounds.includes(Number(round)))
           .reduce((acc: any, [, val]) => acc + val, 0);
-        return sum;
       },
     },
     {
@@ -209,8 +207,7 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
       width: 40,
       render: (_, record: any) => {
         const points = record.penaltyPoints || {};
-        const sum = Object.values(points).reduce((acc: number, val: any) => acc + val, 0);
-        return sum;
+        return Object.values(points).reduce((acc: number, val: any) => acc + val, 0);
       },
     },
   ];
@@ -227,19 +224,19 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
 
   const defaultColumns = [...baseColumns, ...raceColumns];
 
-  const handleSave = (row: any) => {
-    const newData = [...dataSource];
-    const index = newData.findIndex((item) => item.carNumber === row.carNumber);
-    if (index > -1) {
-      newData[index] = { ...newData[index], ...row };
-      setDataSource(newData);
-    }
-  };
+  const handleSave = useCallback((row: any) => {
+    setDataSource((prevData) => {
+      const newData = [...prevData];
+      const index = newData.findIndex((item) => item.id === row.id);
+      if (index > -1) newData[index] = { ...newData[index], ...row };
+      return newData;
+    });
+  }, []);
 
   const components = {
     body: {
       row: EditableRow,
-      cell: (props: EditableCellProps) => <EditableCell {...props} races={races} />,
+      cell: (props: EditableCellProps) => <MemoizedEditableCell {...props} races={races} />,
     },
   };
 
@@ -253,7 +250,7 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
         dataIndex: col.dataIndex,
         title: col.title,
         handleSave,
-        races, // 👈 ADD THIS
+        races,
       }),
     };
   });
@@ -269,7 +266,6 @@ const PenaltyPointsTable: React.FC<PenaltyTableProps> = (params) => {
         onClick={() => {
           const finalData = dataSource.map((row) => unflattenPenaltyPoints(row, raceRounds));
           console.log('Saved data:', finalData);
-          // you can now send `finalData` to API, export, or pass to parent
         }}
         style={{ marginBottom: 16 }}
       >

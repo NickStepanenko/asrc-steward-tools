@@ -1,5 +1,5 @@
 "use client"
-import PenaltyPointsTable from "../pages/penalty-points-table";
+import PenaltyPointsTable from "../pages/PenaltyPointsTable";
 import { useEffect, useState } from "react";
 import { Select, Space } from "antd";
 
